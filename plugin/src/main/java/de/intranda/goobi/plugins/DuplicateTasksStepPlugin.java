@@ -43,6 +43,7 @@ import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
 
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
+import de.sub.goobi.helper.enums.StepStatus;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.persistence.managers.PropertyManager;
 import de.sub.goobi.persistence.managers.StepManager;
@@ -153,6 +154,8 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
             }
         }
 
+        String message = "Failed to find a proper step for duplication. Aborting...";
+        logBoth(this.processId, LogType.ERROR, message);
         return null;
     }
 
@@ -203,10 +206,10 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
     @Override
     public PluginReturnValue run() {
-        boolean successful = checkNecessaryFields();
         // your logic goes here
-        
-        successful = successful && duplicateStepForEachEntry(stepToDuplicate, props);
+        boolean successful = checkNecessaryFields()
+                && duplicateStepForEachEntry(stepToDuplicate, props)
+                && deactivateStep(stepToDuplicate);
 
         log.info("DuplicateTasks step plugin executed");
 
@@ -324,15 +327,20 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
         try {
             StepManager.saveStep(newStep);
+            return true;
 
         } catch (DAOException e) {
             String message = "Failed to save the duplicated new step: " + newStep.getTitel();
             logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
             return false;
-        }
 
-        return true;
+        } catch (Exception e) {
+            String message = "Unknown exception caught while trying to save the duplicated new step: " + newStep.getTitel();
+            logBoth(this.processId, LogType.ERROR, message);
+            e.printStackTrace();
+            return false;
+        }
     }
 
     private boolean addPropertyOfDuplication(String name, String value) {
@@ -347,6 +355,27 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
         } catch (Exception e) {
             String message = "Unknown exception caught while trying to add the process property: " + name;
+            logBoth(this.processId, LogType.ERROR, message);
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean deactivateStep(Step step) {
+        try {
+            step.setBearbeitungsstatusEnum(StepStatus.DEACTIVATED);
+            StepManager.saveStep(step);
+            log.debug("The step with title '" + step.getTitel() + "' is deactivated.");
+            return true;
+
+        } catch (DAOException e) {
+            String message = "Failed to deactivate the step: " + step.getTitel();
+            logBoth(this.processId, LogType.ERROR, message);
+            e.printStackTrace();
+            return false;
+
+        } catch (Exception e) {
+            String message = "Unknown exception caught while trying to deactivate the step: " + step.getTitel();
             logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
             return false;
