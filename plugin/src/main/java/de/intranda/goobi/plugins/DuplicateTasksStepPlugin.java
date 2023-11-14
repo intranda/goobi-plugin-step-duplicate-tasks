@@ -36,10 +36,10 @@ import net.xeoh.plugins.base.annotations.PluginImplementation;
 
 @PluginImplementation
 @Log4j2
-public class SampleStepPlugin implements IStepPluginVersion2 {
+public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     
     @Getter
-    private String title = "intranda_step_sample";
+    private String title = "intranda_step_duplicate_tasks";
     @Getter
     private Step step;
     @Getter
@@ -57,7 +57,8 @@ public class SampleStepPlugin implements IStepPluginVersion2 {
         SubnodeConfiguration myconfig = ConfigPlugins.getProjectAndStepConfig(title, step);
         value = myconfig.getString("value", "default value"); 
         allowTaskFinishButtons = myconfig.getBoolean("allowTaskFinishButtons", false);
-        log.info("Sample step plugin initialized");
+        log.info("DuplicateTasks step plugin initialized");
+        log.debug("value = " + value);
     }
 
     @Override
@@ -70,7 +71,7 @@ public class SampleStepPlugin implements IStepPluginVersion2 {
 
     @Override
     public String getPagePath() {
-        return "/uii/plugin_step_sample.xhtml";
+        return "/uii/plugin_step_duplicate_tasks.xhtml";
     }
 
     @Override
@@ -109,7 +110,7 @@ public class SampleStepPlugin implements IStepPluginVersion2 {
         boolean successful = true;
         // your logic goes here
         
-        log.info("Sample step plugin executed");
+        log.info("DuplicateTasks step plugin executed");
         if (!successful) {
             return PluginReturnValue.ERROR;
         }
