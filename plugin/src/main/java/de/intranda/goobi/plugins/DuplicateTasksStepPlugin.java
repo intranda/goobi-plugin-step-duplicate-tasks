@@ -44,6 +44,7 @@ import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
 import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.exceptions.DAOException;
+import de.sub.goobi.persistence.managers.PropertyManager;
 import de.sub.goobi.persistence.managers.StepManager;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
@@ -123,7 +124,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         for (Processproperty property : properties) {
             String propName = property.getNormalizedTitle();
             if (propName.equals(nameNoSpace)) {
-                return property.getNormalizedValue();
+                return property.getWert();
             }
         }
 
@@ -205,9 +206,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         boolean successful = checkNecessaryFields();
         // your logic goes here
         
-        successful = successful && duplicateStep(step, 0);
-        successful = successful && duplicateStep(step, 1);
-
+        successful = successful && duplicateStepForEachEntry(stepToDuplicate, props);
 
         log.info("DuplicateTasks step plugin executed");
 
@@ -220,15 +219,35 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return stepToDuplicate != null && StringUtils.isNotBlank(propertyValue);
     }
 
-    private boolean duplicateStep(Step step, int order) {
-        log.debug("duplicating the step of name '" + step.getTitel() + "' with order '" + order + "'");
+    private boolean duplicateStepForEachEntry(Step step, String[] props) {
+        if (props == null) {
+            // this is actually impossible, but only for the matter of completeness and double assurance
+            return false;
+        }
 
+        boolean result = true;
+        String origTitle = step.getTitel();
+
+        for (int i = 0; i < props.length; ++i) {
+            String newTitle = getNewTitleWithOrder(origTitle, i + 1);
+            // duplicate the step
+            result = result && duplicateStep(step, newTitle);
+            // add process property 
+            result = result && addPropertyOfDuplication(newTitle, props[i]);
+        }
+
+        return result;
+    }
+
+    private String getNewTitleWithOrder(String title, int order) {
+        return title + " (" + order + ")";
+    }
+
+    private boolean duplicateStep(Step step, String title) {
         Step newStep = new Step();
         newStep.setProzess(this.process);
 
-        String origTitle = step.getTitel();
-        String newTitle = getNewTitleWithOrder(origTitle, order);
-        newStep.setTitel(newTitle);
+        newStep.setTitel(title);
         newStep.setPrioritaet(step.getPrioritaet());
         newStep.setReihenfolge(step.getReihenfolge());
         //        newStep.setBearbeitungsstatusAsString(step.getBearbeitungsstatusAsString());
@@ -316,8 +335,22 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return true;
     }
 
-    private String getNewTitleWithOrder(String title, int order) {
-        return title + " (" + order + ")";
+    private boolean addPropertyOfDuplication(String name, String value) {
+        try {
+            Processproperty property = new Processproperty();
+            property.setTitel(name);
+            property.setWert(value);
+            property.setProzess(this.process);
+            PropertyManager.saveProcessProperty(property);
+
+            return true;
+
+        } catch (Exception e) {
+            String message = "Unknown exception caught while trying to add the process property: " + name;
+            logBoth(this.processId, LogType.ERROR, message);
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
