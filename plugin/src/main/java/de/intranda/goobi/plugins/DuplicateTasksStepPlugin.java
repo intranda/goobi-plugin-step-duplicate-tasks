@@ -59,10 +59,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     private String title = "intranda_step_duplicate_tasks";
     @Getter
     private Step step;
-    @Getter
-    private String value;
-    @Getter 
-    private boolean allowTaskFinishButtons;
+
     private String returnPath;
 
     private Process process;
@@ -88,35 +85,33 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
                 
         // read parameters from correct block in configuration file
         SubnodeConfiguration config = ConfigPlugins.getProjectAndStepConfig(title, step);
-        value = config.getString("value", "default value");
-        allowTaskFinishButtons = config.getBoolean("allowTaskFinishButtons", false);
         log.info("DuplicateTasks step plugin initialized");
-        log.debug("value = " + value);
 
         // initialize property
-        HierarchicalConfiguration propertyConfig = config.configurationAt("property");
-        propertyName = propertyConfig.getString("@name", "");
-        propertySeparator = propertyConfig.getString("@separator", "\n");
+        try {
+            HierarchicalConfiguration propertyConfig = config.configurationAt("property");
+            propertyName = propertyConfig.getString("@name", "");
+            propertySeparator = propertyConfig.getString("@separator", "\n");
+
+        } catch (IllegalArgumentException e) {
+            // the <property> is missing
+            String message = "The configuration for <property> is missing. Aborting...";
+            logBoth(processId, LogType.ERROR, message);
+            return;
+        }
+
         if (StringUtils.isBlank(propertySeparator)) {
             propertySeparator = "\n";
         }
-        log.debug("propertyName = " + propertyName);
-        log.debug("separator = " + propertySeparator);
 
         // get the property value
         propertyValue = getPropertyValueFromProcess(process, propertyName);
-        log.debug("propertyValue = " + propertyValue);
 
         // split propertyValue into props
         props = propertyValue.split(propertySeparator);
-        log.debug("props has " + props.length + " elements:");
-        for (String prop : props) {
-            log.debug("prop = " + prop);
-        }
 
         String stepToDuplicateName = config.getString("stepToDuplicate", "");
         stepToDuplicate = getStepToDuplicate(process, stepToDuplicateName);
-        log.debug("stepToDuplicate has title = " + stepToDuplicate.getTitel());
     }
 
     private String getPropertyValueFromProcess(Process process, String name) {
@@ -133,8 +128,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     }
 
     private Step getStepToDuplicate(Process process, String stepName) {
-        log.debug("stepName = " + stepName);
-
         List<Step> steps = process.getSchritte();
         if (StringUtils.isBlank(stepName)) {
             // get the first step following the current one
@@ -162,15 +155,12 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
     @Override
     public PluginGuiType getPluginGuiType() {
-        return PluginGuiType.FULL;
-        // return PluginGuiType.PART;
-        // return PluginGuiType.PART_AND_FULL;
-        // return PluginGuiType.NONE;
+        return PluginGuiType.NONE;
     }
 
     @Override
     public String getPagePath() {
-        return "/uii/plugin_step_duplicate_tasks.xhtml";
+        return "";
     }
 
     @Override
@@ -249,17 +239,22 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     private boolean duplicateStep(Step step, String title) {
         Step newStep = new Step();
         newStep.setProzess(this.process);
-
         newStep.setTitel(title);
+
+        /* // =========================== fields that are NOT to be copied are: =========================== //
+         * 1. id, title 
+         *     - which must be different
+         * 2. process, processId 
+         *     - which is achieved by calling the setter on this.process directly
+         * 3. bearbeitungsstatus, bearbeitungszeitpunkt, bearbeitungsbeginn, bearbeitungsende, bearbeitungsbenutzer, userId, messageQueue 
+         *     - which do not have to be the same
+         * // ============================================================================== // */
+
         newStep.setPrioritaet(step.getPrioritaet());
         newStep.setReihenfolge(step.getReihenfolge());
-        //        newStep.setBearbeitungsstatusAsString(step.getBearbeitungsstatusAsString());
-        //        newStep.setBearbeitungszeitpunkt(step.getBearbeitungszeitpunkt());
-        //        newStep.setBearbeitungsbeginn(step.getBearbeitungsbeginn());
-        //        newStep.setBearbeitungsende(step.getBearbeitungsende());
+
         newStep.setEditTypeEnum(step.getEditTypeEnum());
-        //        newStep.setBearbeitungsbenutzer(step.getBearbeitungsbenutzer());
-        //        newStep.setUserId(step.getUserId());
+
         newStep.setHomeverzeichnisNutzen(step.getHomeverzeichnisNutzen());
         newStep.setTypMetadaten(step.isTypMetadaten());
         newStep.setTypAutomatisch(step.isTypAutomatisch());
@@ -312,9 +307,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         // make a copy of this list
         newStep.setBenutzergruppen(new ArrayList<>(origUserGroupsList));
 
-        //        boolean userGroupsEquals = newStep.getBenutzergruppen() == step.getBenutzergruppen();
-        //        log.debug("userGroupsEquals = " + userGroupsEquals);
-
         newStep.setPanelAusgeklappt(step.isPanelAusgeklappt());
         newStep.setSelected(step.isSelected());
         newStep.setStepPlugin(step.getStepPlugin());
@@ -322,8 +314,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         newStep.setDelayStep(step.isDelayStep());
         newStep.setUpdateMetadataIndex(step.isUpdateMetadataIndex());
         newStep.setGenerateDocket(step.isGenerateDocket());
-
-        // not copied fields are: id, process, processId, messageQueue
 
         try {
             StepManager.saveStep(newStep);
