@@ -64,15 +64,15 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
     private Process process;
     private int processId;
-
+    // name of the property holding value that shall be separated into smaller parts
     private String propertyName;
-
+    // property value that shall be separated into smaller parts
     private String propertyValue;
-
+    // separator that shall be used to separate the property value into smaller parts, by default \n 
     private String propertySeparator;
-
+    // property parts after separation 
     private String[] props;
-
+    // Step that shall be duplicated by this plugin
     private Step stepToDuplicate;
 
     @Override
@@ -114,6 +114,13 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         stepToDuplicate = getStepToDuplicate(process, stepToDuplicateName);
     }
 
+    /**
+     * get the value of the property with the input name
+     * 
+     * @param process Goobi process
+     * @param name name of the property
+     * @return value of the property if it is found, otherwise an empty string
+     */
     private String getPropertyValueFromProcess(Process process, String name) {
         String nameNoSpace = name.replace(" ", "_");
         List<Processproperty> properties = process.getEigenschaften();
@@ -127,6 +134,13 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return "";
     }
 
+    /**
+     * get the step to duplicate
+     * 
+     * @param process Goobi process
+     * @param stepName name of the step that shall be duplicated
+     * @return the first step of the given name if the input name is not blank, otherwise the next step of the current one
+     */
     private Step getStepToDuplicate(Process process, String stepName) {
         List<Step> steps = process.getSchritte();
         if (StringUtils.isBlank(stepName)) {
@@ -155,11 +169,13 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
     @Override
     public PluginGuiType getPluginGuiType() {
+        // no GUI
         return PluginGuiType.NONE;
     }
 
     @Override
     public String getPagePath() {
+        // not used
         return "";
     }
 
@@ -206,12 +222,24 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return successful ? PluginReturnValue.FINISH : PluginReturnValue.ERROR;
     }
 
+    /**
+     * check if all necessary fields needed for further processing are available and valid
+     * 
+     * @return true if all necessary fields are available and valid, false otherwise
+     */
     private boolean checkNecessaryFields() {
         // 1. stepToDuplicate should not be null
         // 2. a blank propertyValue makes no sense
         return stepToDuplicate != null && StringUtils.isNotBlank(propertyValue);
     }
 
+    /**
+     * perform the duplication of the input step for each entry in the input props array
+     * 
+     * @param step the step that is to be duplicated
+     * @param props array of strings, each of which will be recorded as value of a new process property
+     * @return true if the duplication process is successful for all entries in the input array, false otherwise
+     */
     private boolean duplicateStepForEachEntry(Step step, String[] props) {
         if (props == null) {
             // this is actually impossible, but only for the matter of completeness and double assurance
@@ -223,19 +251,33 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
         for (int i = 0; i < props.length; ++i) {
             String newTitle = getNewTitleWithOrder(origTitle, i + 1);
-            // duplicate the step
-            result = result && duplicateStep(step, newTitle);
-            // add process property 
-            result = result && addPropertyOfDuplication(newTitle, props[i]);
+
+            result = result
+                    && duplicateStep(step, newTitle)
+                    && addProcessProperty(newTitle, props[i]);
         }
 
         return result;
     }
 
+    /**
+     * get the new title based on the old title and an input order
+     * 
+     * @param title old title
+     * @param order
+     * @return new title
+     */
     private String getNewTitleWithOrder(String title, int order) {
         return title + " (" + order + ")";
     }
 
+    /**
+     * duplicate the input step and name it with the input title
+     * 
+     * @param step the step that is to be duplicated
+     * @param title title that shall be used to name the duplicated new step
+     * @return true if the duplication is successful, false otherwise
+     */
     private boolean duplicateStep(Step step, String title) {
         Step newStep = new Step();
         newStep.setProzess(this.process);
@@ -333,7 +375,14 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
     }
 
-    private boolean addPropertyOfDuplication(String name, String value) {
+    /**
+     * add a process property to the process
+     * 
+     * @param name property name
+     * @param value property value
+     * @return true if the process property is successfully created and added, false otherwise
+     */
+    private boolean addProcessProperty(String name, String value) {
         try {
             Processproperty property = new Processproperty();
             property.setTitel(name);
@@ -351,6 +400,12 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
     }
 
+    /**
+     * deactivate the input step
+     * 
+     * @param step step that shall be deactivated
+     * @return true if the step is successfully deactivated, false otherwise
+     */
     private boolean deactivateStep(Step step) {
         try {
             step.setBearbeitungsstatusEnum(StepStatus.DEACTIVATED);
