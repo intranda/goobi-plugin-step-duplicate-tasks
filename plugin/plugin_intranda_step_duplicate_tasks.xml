@@ -12,10 +12,14 @@
         <project>*</project>
         <step>*</step>
         
-        <!-- sample parameter -->
-        <value>test</value>
-        <!-- display button to finish the task directly from within the entered plugin -->
-        <allowTaskFinishButtons>true</allowTaskFinishButtons>
+        <!-- Process property whose value shall be separated into parts, and it accepts two attributes:
+              - @name: name of the process property
+              - @separator: separator that shall be used to divide the value of the process property into smaller parts. OPTIONAL. DEFAULT "\n".
+         -->
+        <property name="short property" separator="," />
+        
+        <!-- Name of the step that shall be duplicated. OPTIONAL. If not configured, then the next step following the current one will be used as default. -->
+        <stepToDuplicate>Metadata enrichment</stepToDuplicate>
     </config>
 
 </config_plugin>
