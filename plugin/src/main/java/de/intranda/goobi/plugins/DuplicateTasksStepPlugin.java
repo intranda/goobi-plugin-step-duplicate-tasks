@@ -281,7 +281,10 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     private boolean processWithoutStepDuplication() {
         boolean result = true;
         for (int i = 0; i < props.length; ++i) {
-            String targetNameToSave = useIndex ? getNewTitleWithOrder(targetName, i + 1) : targetName;
+            String targetNameToSave = StringUtils.isBlank(targetName) ? propertyName : targetName;
+            if (useIndex) {
+                targetNameToSave = getNewTitleWithOrder(targetNameToSave, i + 1);
+            }
             result = result && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
         }
 
