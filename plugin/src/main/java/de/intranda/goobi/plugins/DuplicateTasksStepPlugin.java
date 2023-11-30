@@ -1,5 +1,6 @@
 package de.intranda.goobi.plugins;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -45,11 +46,23 @@ import de.sub.goobi.config.ConfigPlugins;
 import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.enums.StepStatus;
 import de.sub.goobi.helper.exceptions.DAOException;
+import de.sub.goobi.helper.exceptions.SwapException;
 import de.sub.goobi.persistence.managers.PropertyManager;
 import de.sub.goobi.persistence.managers.StepManager;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
+import ugh.dl.DigitalDocument;
+import ugh.dl.DocStruct;
+import ugh.dl.Fileformat;
+import ugh.dl.Metadata;
+import ugh.dl.MetadataType;
+import ugh.dl.Person;
+import ugh.dl.Prefs;
+import ugh.exceptions.MetadataTypeNotAllowedException;
+import ugh.exceptions.PreferencesException;
+import ugh.exceptions.ReadException;
+import ugh.exceptions.WriteException;
 
 @PluginImplementation
 @Log4j2
@@ -75,6 +88,14 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     // Step that shall be duplicated by this plugin
     private Step stepToDuplicate;
 
+    private boolean stepDuplicationEnabled;
+
+    private String targetType;
+    private String targetName;
+    private boolean useIndex;
+
+    private Prefs prefs;
+
     @Override
     public void initialize(Step step, String returnPath) {
         this.returnPath = returnPath;
@@ -82,6 +103,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
         process = step.getProzess();
         processId = process.getId();
+        prefs = process.getRegelsatz().getPreferences();
                 
         // read parameters from correct block in configuration file
         SubnodeConfiguration config = ConfigPlugins.getProjectAndStepConfig(title, step);
@@ -92,6 +114,21 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
             HierarchicalConfiguration propertyConfig = config.configurationAt("property");
             propertyName = propertyConfig.getString("@name", "");
             propertySeparator = propertyConfig.getString("@separator", "\n");
+
+            String propertyTarget = propertyConfig.getString("@target", "");
+            if (StringUtils.isBlank(propertyTarget) || !propertyTarget.contains(":")) {
+                targetType = "property";
+                targetName = propertyTarget;
+            } else {
+                String[] propertyTargetParts = propertyTarget.split(":");
+                targetType = propertyTargetParts[0];
+                targetName = propertyTargetParts[1];
+            }
+
+            useIndex = propertyConfig.getBoolean("@useIndex", true);
+            log.debug("propertyTargetType = " + targetType);
+            log.debug("propertyTargetName = " + targetName);
+            log.debug("propertyUseIndex = " + useIndex);
 
         } catch (IllegalArgumentException e) {
             // the <property> is missing
@@ -110,8 +147,14 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         // split propertyValue into props
         props = propertyValue.split(propertySeparator);
 
-        String stepToDuplicateName = config.getString("stepToDuplicate", "");
-        stepToDuplicate = getStepToDuplicate(process, stepToDuplicateName);
+        SubnodeConfiguration stepDuplicationConfig = config.configurationAt("stepToDuplicate");
+        stepDuplicationEnabled = stepDuplicationConfig.getBoolean("@enabled", true);
+        log.debug("stepDuplicationEnabled = " + stepDuplicationEnabled);
+
+        if (stepDuplicationEnabled) {
+            String stepToDuplicateName = config.getString("stepToDuplicate", "");
+            stepToDuplicate = getStepToDuplicate(process, stepToDuplicateName);
+        }
     }
 
     /**
@@ -213,13 +256,28 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     @Override
     public PluginReturnValue run() {
         // your logic goes here
-        boolean successful = checkNecessaryFields()
-                && duplicateStepForEachEntry(stepToDuplicate, props)
-                && deactivateStep(stepToDuplicate);
+        boolean successful = stepDuplicationEnabled ? processWithStepDuplication() : processWithoutStepDuplication();
 
         log.info("DuplicateTasks step plugin executed");
 
         return successful ? PluginReturnValue.FINISH : PluginReturnValue.ERROR;
+    }
+
+    private boolean processWithStepDuplication() {
+        return checkNecessaryFieldsForStepDuplication()
+                && duplicateStepForEachEntry(stepToDuplicate, props)
+                && deactivateStep(stepToDuplicate);
+    }
+
+    private boolean processWithoutStepDuplication() {
+        boolean result = true;
+        for (int i = 0; i < props.length; ++i) {
+            String targetNameToSave = useIndex ? getNewTitleWithOrder(targetName, i + 1) : targetName;
+            log.debug("adding new property named " + targetNameToSave);
+            result = result && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
+        }
+
+        return result;
     }
 
     /**
@@ -227,7 +285,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      * 
      * @return true if all necessary fields are available and valid, false otherwise
      */
-    private boolean checkNecessaryFields() {
+    private boolean checkNecessaryFieldsForStepDuplication() {
         // 1. stepToDuplicate should not be null
         // 2. a blank propertyValue makes no sense
         return stepToDuplicate != null && StringUtils.isNotBlank(propertyValue);
@@ -247,14 +305,21 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
 
         boolean result = true;
-        String origTitle = step.getTitel();
+        String origStepTitle = step.getTitel();
 
         for (int i = 0; i < props.length; ++i) {
-            String newTitle = getNewTitleWithOrder(origTitle, i + 1);
+            String newStepTitle = getNewTitleWithOrder(origStepTitle, i + 1);
+
+            String targetNameToSave = targetName;
+            if (StringUtils.isBlank(targetName)) {
+                targetNameToSave = newStepTitle;
+            } else if (useIndex) {
+                targetNameToSave = getNewTitleWithOrder(targetName, i + 1);
+            }
 
             result = result
-                    && duplicateStep(step, newTitle)
-                    && addProcessProperty(newTitle, props[i]);
+                    && duplicateStep(step, newStepTitle)
+                    && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
         }
 
         return result;
@@ -375,6 +440,21 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
     }
 
+    private boolean addProcessPropertyOrMetadata(String name, String value, String type) {
+        switch (type.toLowerCase()) {
+            case "person":
+            case "metadata":
+                return addMetadata(name, value, type);
+            case "property":
+                return addProcessProperty(name, value);
+            default:
+                // unknown type
+                String message = "Unknown type '" + type + "'. Allowed types are metadata | person | property";
+                logBoth(this.processId, LogType.ERROR, message);
+                return false;
+        }
+    }
+
     /**
      * add a process property to the process
      * 
@@ -398,6 +478,71 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
             e.printStackTrace();
             return false;
         }
+    }
+
+    private boolean addMetadata(String name, String value, String type) {
+        log.debug("adding metadata '" + name + "' with value '" + value + "'");
+        try {
+            Fileformat fileformat = process.readMetadataFile();
+            DigitalDocument dd = fileformat.getDigitalDocument();
+            DocStruct logical = dd.getLogicalDocStruct();
+            MetadataType mdType = prefs.getMetadataTypeByName(name);
+            boolean isPerson = "person".equalsIgnoreCase(type);
+            Metadata md = createMetadata(mdType, value.trim(), isPerson);
+            if (isPerson) {
+                logical.addPerson((Person) md);
+            } else {
+                logical.addMetadata(md);
+            }
+
+            process.writeMetadataFile(fileformat);
+
+        } catch (ReadException | IOException | SwapException e) {
+            // readMetadataFile
+            e.printStackTrace();
+
+        } catch (PreferencesException e) {
+            // getDigitalDocument
+            e.printStackTrace();
+
+        } catch (MetadataTypeNotAllowedException e) {
+            // createMetadata
+            e.printStackTrace();
+
+        } catch (WriteException e) {
+            // writeMetadataFile
+            e.printStackTrace();
+        }
+
+        return true;
+    }
+
+    /**
+     * create Metadata
+     * 
+     * @param targetType MetadataType
+     * @param value value of the new Metadata
+     * @param isPerson
+     * @return the new Metadata object created
+     * @throws MetadataTypeNotAllowedException
+     */
+    private Metadata createMetadata(MetadataType targetType, String value, boolean isPerson) throws MetadataTypeNotAllowedException {
+        // treat persons different than regular metadata
+        if (isPerson) {
+            Person p = new Person(targetType);
+            int splitIndex = value.indexOf(" ");
+            String firstName = value.substring(0, splitIndex);
+            String lastName = value.substring(splitIndex);
+            p.setFirstname(firstName);
+            p.setLastname(lastName);
+
+            return p;
+        }
+
+        Metadata md = new Metadata(targetType);
+        md.setValue(value);
+
+        return md;
     }
 
     /**
