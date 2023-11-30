@@ -77,6 +77,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
     private Process process;
     private int processId;
+    private Prefs prefs;
     // name of the property holding value that shall be separated into smaller parts
     private String propertyName;
     // property value that shall be separated into smaller parts
@@ -87,14 +88,16 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     private String[] props;
     // Step that shall be duplicated by this plugin
     private Step stepToDuplicate;
-
+    // true if a step duplication is needed, false otherwise
     private boolean stepDuplicationEnabled;
-
+    // three options for targetType for now: person | metadata | property. 
+    // For person and metadata, the changes will be written into the METS file. 
+    // For property the changes will be saved as process's property.
     private String targetType;
+    // name of the new metadata's type or the new process property
     private String targetName;
+    // true if an index should be used as suffices to the names of all the new metadata as well as process properties, false otherwise
     private boolean useIndex;
-
-    private Prefs prefs;
 
     @Override
     public void initialize(Step step, String returnPath) {
@@ -126,9 +129,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
             }
 
             useIndex = propertyConfig.getBoolean("@useIndex", true);
-            log.debug("propertyTargetType = " + targetType);
-            log.debug("propertyTargetName = " + targetName);
-            log.debug("propertyUseIndex = " + useIndex);
 
         } catch (IllegalArgumentException e) {
             // the <property> is missing
@@ -149,7 +149,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
         SubnodeConfiguration stepDuplicationConfig = config.configurationAt("stepToDuplicate");
         stepDuplicationEnabled = stepDuplicationConfig.getBoolean("@enabled", true);
-        log.debug("stepDuplicationEnabled = " + stepDuplicationEnabled);
 
         if (stepDuplicationEnabled) {
             String stepToDuplicateName = config.getString("stepToDuplicate", "");
@@ -263,17 +262,26 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return successful ? PluginReturnValue.FINISH : PluginReturnValue.ERROR;
     }
 
+    /**
+     * processing logic when step duplication is enabled
+     * 
+     * @return true if everything works out well, false otherwise
+     */
     private boolean processWithStepDuplication() {
         return checkNecessaryFieldsForStepDuplication()
                 && duplicateStepForEachEntry(stepToDuplicate, props)
                 && deactivateStep(stepToDuplicate);
     }
 
+    /**
+     * processing logic when step duplication is disabled
+     * 
+     * @return true if everything works out well, false otherwise
+     */
     private boolean processWithoutStepDuplication() {
         boolean result = true;
         for (int i = 0; i < props.length; ++i) {
             String targetNameToSave = useIndex ? getNewTitleWithOrder(targetName, i + 1) : targetName;
-            log.debug("adding new property named " + targetNameToSave);
             result = result && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
         }
 
@@ -440,6 +448,14 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
     }
 
+    /**
+     * switch method to control whether to call addMetadata or addProcessProperty
+     * 
+     * @param name name of the new Metadata or ProcessProperty that is to be created
+     * @param value value of the new Metadata or ProcessProperty that is to be created
+     * @param type three options for now: person | metadata | property. Can be extended further if needed.
+     * @return true if the Metadata or ProcessProperty is successfully added, false otherwise
+     */
     private boolean addProcessPropertyOrMetadata(String name, String value, String type) {
         switch (type.toLowerCase()) {
             case "person":
@@ -463,6 +479,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      * @return true if the process property is successfully created and added, false otherwise
      */
     private boolean addProcessProperty(String name, String value) {
+        log.debug("adding process property '" + name + "' with value '" + value + "'");
         try {
             Processproperty property = new Processproperty();
             property.setTitel(name);
@@ -480,6 +497,14 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         }
     }
 
+    /**
+     * add a metadata to the METS file
+     * 
+     * @param name name of the new metadata's type
+     * @param value value of the new metadata
+     * @param type two possibilities for now: person | metadata. Can be extended further if needed.
+     * @return true if the metadata is successfully created and added, false otherwise
+     */
     private boolean addMetadata(String name, String value, String type) {
         log.debug("adding metadata '" + name + "' with value '" + value + "'");
         try {
@@ -496,25 +521,42 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
             }
 
             process.writeMetadataFile(fileformat);
+            return true;
 
         } catch (ReadException | IOException | SwapException e) {
             // readMetadataFile
+            String message = "Failed to read the METS file.";
+            logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
+            return false;
 
         } catch (PreferencesException e) {
             // getDigitalDocument
+            String message = "Failed to load the digital document.";
+            logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
+            return false;
 
         } catch (MetadataTypeNotAllowedException e) {
             // createMetadata
+            String message = "MetadataType '" + name + "' is not allowed.";
+            logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
+            return false;
 
         } catch (WriteException e) {
             // writeMetadataFile
+            String message = "Failed to save the changes into METS file.";
+            logBoth(this.processId, LogType.ERROR, message);
             e.printStackTrace();
-        }
+            return false;
 
-        return true;
+        } catch (Exception e) {
+            String message = "Unknown exception caught while trying to add the metadata: " + name;
+            logBoth(this.processId, LogType.ERROR, message);
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
