@@ -86,7 +86,7 @@ import ugh.exceptions.WriteException;
 @PluginImplementation
 @Log4j2
 public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
-    
+
     @Getter
     private String title = "intranda_step_duplicate_tasks";
     @Getter
@@ -101,16 +101,16 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     private String propertyName;
     // property value that shall be separated into smaller parts
     private String propertyValue;
-    // separator that shall be used to separate the property value into smaller parts, by default \n 
+    // separator that shall be used to separate the property value into smaller parts, by default \n
     private String propertySeparator;
-    // property parts after separation 
-    private String[] props;
+    // property parts after separation
+    private List<String> properties = new ArrayList<>();
     // Step that shall be duplicated by this plugin
     private Step stepToDuplicate;
     // true if a step duplication is needed, false otherwise
     private boolean stepDuplicationEnabled;
-    // three options for targetType for now: person | metadata | property. 
-    // For person and metadata, the changes will be written into the METS file. 
+    // three options for targetType for now: person | metadata | property.
+    // For person and metadata, the changes will be written into the METS file.
     // For property the changes will be saved as process's property.
     private String targetType;
     // name of the new metadata's type or the new process property
@@ -126,7 +126,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         process = step.getProzess();
         processId = process.getId();
         prefs = process.getRegelsatz().getPreferences();
-                
+
         // read parameters from correct block in configuration file
         SubnodeConfiguration config = ConfigPlugins.getProjectAndStepConfig(title, step);
         log.info("DuplicateTasks step plugin initialized");
@@ -164,7 +164,13 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         propertyValue = getPropertyValueFromProcess(process, propertyName);
 
         // split propertyValue into props
-        props = propertyValue.split(propertySeparator);
+        String[] props = propertyValue.split(propertySeparator);
+        properties = new ArrayList<>();
+        for (String str : props) {
+            if (StringUtils.isNotBlank(str)) {
+                properties.add(str);
+            }
+        }
 
         SubnodeConfiguration stepDuplicationConfig = config.configurationAt("stepToDuplicate");
         stepDuplicationEnabled = stepDuplicationConfig.getBoolean("@enabled", true);
@@ -227,7 +233,6 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         return null;
     }
 
-
     @Override
     public PluginGuiType getPluginGuiType() {
         // no GUI
@@ -254,7 +259,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     public String finish() {
         return "/uii" + returnPath;
     }
-    
+
     @Override
     public int getInterfaceVersion() {
         return 0;
@@ -264,7 +269,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
     public HashMap<String, StepReturnValue> validate() {
         return null;
     }
-    
+
     @Override
     public boolean execute() {
         PluginReturnValue ret = run();
@@ -288,7 +293,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      */
     private boolean processWithStepDuplication() {
         return checkNecessaryFieldsForStepDuplication()
-                && duplicateStepForEachEntry(stepToDuplicate, props)
+                && duplicateStepForEachEntry(stepToDuplicate, properties)
                 && deactivateStep(stepToDuplicate);
     }
 
@@ -299,12 +304,12 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      */
     private boolean processWithoutStepDuplication() {
         boolean result = true;
-        for (int i = 0; i < props.length; ++i) {
+        for (int i = 0; i < properties.size(); ++i) {
             String targetNameToSave = StringUtils.isBlank(targetName) ? propertyName : targetName;
             if (useIndex) {
                 targetNameToSave = getNewTitleWithOrder(targetNameToSave, i + 1);
             }
-            result = result && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
+            result = result && addProcessPropertyOrMetadata(targetNameToSave, properties.get(i), targetType);
         }
 
         return result;
@@ -328,8 +333,8 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      * @param props array of strings, each of which will be recorded as value of a new process property
      * @return true if the duplication process is successful for all entries in the input array, false otherwise
      */
-    private boolean duplicateStepForEachEntry(Step step, String[] props) {
-        if (props == null) {
+    private boolean duplicateStepForEachEntry(Step step, List<String> properties) {
+        if (properties == null) {
             // this is actually impossible, but only for the matter of completeness and double assurance
             return false;
         }
@@ -337,7 +342,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         boolean result = true;
         String origStepTitle = step.getTitel();
 
-        for (int i = 0; i < props.length; ++i) {
+        for (int i = 0; i < properties.size(); ++i) {
             String newStepTitle = getNewTitleWithOrder(origStepTitle, i + 1);
 
             String targetNameToSave = targetName;
@@ -349,7 +354,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
 
             result = result
                     && duplicateStep(step, newStepTitle)
-                    && addProcessPropertyOrMetadata(targetNameToSave, props[i], targetType);
+                    && addProcessPropertyOrMetadata(targetNameToSave, properties.get(i), targetType);
         }
 
         return result;
@@ -379,11 +384,11 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         newStep.setTitel(title);
 
         /* // =========================== fields that are NOT to be copied are: =========================== //
-         * 1. id, title 
+         * 1. id, title
          *     - which must be different
-         * 2. process, processId 
+         * 2. process, processId
          *     - which is achieved by calling the setter on this.process directly
-         * 3. bearbeitungsstatus, bearbeitungszeitpunkt, bearbeitungsbeginn, bearbeitungsende, bearbeitungsbenutzer, userId, messageQueue 
+         * 3. bearbeitungsstatus, bearbeitungszeitpunkt, bearbeitungsbeginn, bearbeitungsende, bearbeitungsbenutzer, userId, messageQueue
          *     - which do not have to be the same
          * // ============================================================================== // */
 
