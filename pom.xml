@@ -7,7 +7,7 @@
     <relativePath />
   </parent>
   <groupId>io.goobi.workflow.plugin</groupId>
-  <artifactId>plugin-step-duplicate_tasks</artifactId>
+  <artifactId>plugin-step-duplicate-tasks</artifactId>
   <packaging>pom</packaging>
   <modules>
     <module>module-base</module>
