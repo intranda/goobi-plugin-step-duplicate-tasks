@@ -368,7 +368,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      * @return new title
      */
     private String getNewTitleWithOrder(String title, int order) {
-        return title + " (" + order + ")";
+        return title + " [" + order + "]";
     }
 
     /**
