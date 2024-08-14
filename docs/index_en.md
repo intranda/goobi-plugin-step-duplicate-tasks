@@ -21,6 +21,7 @@ The configuration file is usually located here:
 /opt/digiverso/goobi/config/plugin_intranda_step_duplicate_tasks.xml
 ```
 
+![Selection of the plugin for performing the step](screen1_en.png)
 
 ## Overview and functionality
 

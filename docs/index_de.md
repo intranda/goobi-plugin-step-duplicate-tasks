@@ -31,6 +31,7 @@ Die Konfigurationsdatei befindet sich üblicherweise hier:
 3. Für jeden duplizierten neuen Arbeitsschritt wird eine neue Vorgangseigenschaft oder ein Metadatum erstellt, je nachdem wie das Attribut `@target` konfiguriert ist. Der Wert dieser neuen Vorgangseigenschaft bzw. dieses neuen Metadatums entspricht dabei dem Teil der ursprünglichen Eigenschaft, auf dessen Grundlage dieser Arbeitsschritt dupliziert wurde.
 4. Wenn Duplikate für jeden Teil der ursprünglichen Eigenschaft erzeugt werden, wird der ursprüngliche Arbeitsschritt deaktiviert.
 
+![Auswahl des Plugins zur Durchführung des Arbeitsschrittes](screen1_de.png)
 
 ### Ohne Duplikation eines Arbeitsschritts
 1. Das Plugin holt sich den Wert der konfigurierten Vorgangseigenschaft und teilt ihn unter Verwendung des eventuell konfigurierten Trennzeichens *(oder `\n`, falls nicht)* in Teile auf.
