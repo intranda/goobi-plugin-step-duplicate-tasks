@@ -23,15 +23,15 @@ Die Konfigurationsdatei befindet sich üblicherweise hier:
 
 
 ## Überblick und Funktionsweise
+Nach der erfolgreichen Installation, wird das Plugin wie im folgenden Screenshot innerhalb des Workflows integriert.
 
+![Auswahl des Plugins zur Durchführung des Arbeitsschrittes](screen1_de.png)
 
 ### Mit Duplikation eines Arbeitsschritts
 1. Das Plugin holt sich den Wert der konfigurierten Vorgangseigenschaft und teilt ihn unter Verwendung des eventuell konfigurierten Trennzeichens *(oder `\n`, falls nicht)* in Teile auf.
 2. Für jeden Teil der ursprünglichen Eigenschaft wird der möglicherweise konfigurierte Arbeitsschritt *(oder der nächste Arbeitsschritt des aktuellen Arbeitsschritts, wenn er nicht konfiguriert ist)* noch einmal dupliziert. Die Namen dieser duplizierten neuen Arbeitsschritte erhalten den Namen des ursprünglichen Arbeitsschritts plus einen hochgezählten Wert.
 3. Für jeden duplizierten neuen Arbeitsschritt wird eine neue Vorgangseigenschaft oder ein Metadatum erstellt, je nachdem wie das Attribut `@target` konfiguriert ist. Der Wert dieser neuen Vorgangseigenschaft bzw. dieses neuen Metadatums entspricht dabei dem Teil der ursprünglichen Eigenschaft, auf dessen Grundlage dieser Arbeitsschritt dupliziert wurde.
 4. Wenn Duplikate für jeden Teil der ursprünglichen Eigenschaft erzeugt werden, wird der ursprüngliche Arbeitsschritt deaktiviert.
-
-![Auswahl des Plugins zur Durchführung des Arbeitsschrittes](screen1_de.png)
 
 ### Ohne Duplikation eines Arbeitsschritts
 1. Das Plugin holt sich den Wert der konfigurierten Vorgangseigenschaft und teilt ihn unter Verwendung des eventuell konfigurierten Trennzeichens *(oder `\n`, falls nicht)* in Teile auf.

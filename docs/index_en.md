@@ -21,10 +21,10 @@ The configuration file is usually located here:
 /opt/digiverso/goobi/config/plugin_intranda_step_duplicate_tasks.xml
 ```
 
-![Selection of the plugin for performing the step](screen1_en.png)
-
 ## Overview and functionality
+After a successful installation, the plugin is integrated into the workflow as shown in the following screenshot.
 
+![Selection of the plugin for performing the step](screen1_en.png)
 
 ### With duplication of a work step
 1. the plugin retrieves the value of the configured process property and splits it into parts using the possibly configured separator *(or `\n` if not)*.
