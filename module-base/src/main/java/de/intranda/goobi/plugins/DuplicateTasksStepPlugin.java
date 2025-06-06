@@ -49,6 +49,7 @@ import org.apache.commons.configuration.HierarchicalConfiguration;
 import org.apache.commons.configuration.SubnodeConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.goobi.beans.ErrorProperty;
+import org.goobi.beans.GoobiProperty;
 import org.goobi.beans.Process;
 import org.goobi.beans.Processproperty;
 import org.goobi.beans.Step;
@@ -190,8 +191,8 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
      */
     private String getPropertyValueFromProcess(Process process, String name) {
         String nameNoSpace = name.replace(" ", "_");
-        List<Processproperty> properties = process.getEigenschaften();
-        for (Processproperty property : properties) {
+        List<GoobiProperty> properties = process.getEigenschaften();
+        for (GoobiProperty property : properties) {
             String propName = property.getNormalizedTitle();
             if (propName.equals(nameNoSpace)) {
                 return property.getWert();
@@ -437,7 +438,7 @@ public class DuplicateTasksStepPlugin implements IStepPluginVersion2 {
         newStep.setHttpCloseStep(step.isHttpCloseStep());
         newStep.setHttpEscapeBodyJson(step.isHttpEscapeBodyJson());
 
-        List<ErrorProperty> origPropertiesList = step.getEigenschaften();
+        List<GoobiProperty> origPropertiesList = step.getEigenschaften();
         // make a copy of this list
         newStep.setEigenschaften(new ArrayList<>(origPropertiesList));
 
