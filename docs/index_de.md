@@ -3,6 +3,10 @@ title: Duplikation von Arbeitsschritten
 identifier: intranda_step_duplicate_tasks
 published: true
 description: Dieses Step-Plugin ermöglicht es, eine Arbeitsschritt innerhalb des Workflow automatisch entsprechend einer Vorgangseigenschaft mehrfach zu duplizieren.
+keywords:
+    - Goobi workflow
+    - Plugin
+    - Step Plugin
 ---
 ## Einführung
 Dieses Plugin liest den Wert einer Vorgangseigenschaft ein und kann abhängig von den Inhalten der Eigenschaft eine definierten Arbeitsschritt des Workflows automatisch mehrfach duplizieren. Außerdem kann dabei die ursprünglich ausgewertete Eigenschaft aufgesplittet und als jeweils eigene neue Eigenschaften gespeichert werden, die auf diese Duplizierung verweisen.
