@@ -3,6 +3,10 @@ title: Duplication of work steps
 identifier: intranda_step_duplicate_tasks
 published: true
 description: This step plug-in allows you to automatically duplicate a work step within the workflow several times according to a process property.
+keywords:
+    - Goobi workflow
+    - Plugin
+    - Step Plugin
 ---
 ## Introduction
 This plugin reads the value of a process property and can automatically duplicate a defined workflow step several times depending on the contents of the property. In addition, the originally analysed property can be split and saved as separate new properties that refer to this duplication.
