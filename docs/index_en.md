@@ -61,14 +61,14 @@ The content of this configuration file looks as follows as an example:
         <step>*</step>
         
          <!-- Process property whose value shall be separated into parts, and it accepts four attributes:
-              - @name: name of the process property that shall be splitted
+              - @name: name of the process property that shall be split
               - @separator: separator that shall be used to split the value of the process property into smaller parts. OPTIONAL. DEFAULT "\n".
-              - @target: configure with this attribute where and how to save the splitted parts. OPTIONAL.
-                              - IF NOT configured, then all splitted parts will be saved as process properties, and the default property names depend on the configuration of @enabled of the tag <stepToDuplicate>:
+              - @target: configure with this attribute where and how to save the split parts. OPTIONAL.
+                              - IF NOT configured, then all split parts will be saved as process properties, and the default property names depend on the configuration of @enabled of the tag <stepToDuplicate>:
                                 If @enabled is true, then the default property name will be the step's name that is to be duplicated.
                                 If @enabled is false, then the default property name will be the property's @name.
-                              - IF configured without using a colon, then all splitted parts will be saved as process properties, and the configured @target will be the new properties' names.
-                              - IF configured with a colon, then the part before that colon will control where the changes land, while the part after that colon will define the names of the splitted new parts:
+                              - IF configured without using a colon, then all split parts will be saved as process properties, and the configured @target will be the new properties' names.
+                              - IF configured with a colon, then the part before that colon will control where the changes land, while the part after that colon will define the names of the split new parts:
                                 Before the colon there are three options: property | metadata | person. For "metadata" and "person", changes will be saved into the METS file. For "property" changes will be saved as properties.
               - @useIndex: determines whether to use an index as suffix to each new process property / metadata entry to distinguish them between each other. OPTIONAL. DEFAULT true.
          -->
